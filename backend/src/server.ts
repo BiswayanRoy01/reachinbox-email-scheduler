@@ -10,6 +10,15 @@ async function bootstrap() {
   try {
     logger.info(`Starting ReachInbox Backend in ${config.env} mode...`);
 
+    // 0. Auto-run database migrations
+    try {
+      const { execSync } = await import("child_process");
+      logger.info("Applying database migrations...");
+      execSync("npx prisma migrate deploy", { stdio: "inherit" });
+    } catch (migErr: any) {
+      logger.warn("Prisma migration warning:", { error: migErr.message });
+    }
+
     // 1. Startup reconciliation for email scheduler
     try {
       await reconcileScheduledEmails();
