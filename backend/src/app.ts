@@ -94,6 +94,16 @@ export function createApp(): Express {
   app.use(`${prefix}/dashboard`, dashboardRouter);
   app.use(`${prefix}/health`, healthRouter);
 
+  // Fallback alias endpoints (allows requests without /api/v1 prefix)
+  app.use("/auth", authRouter);
+  app.use("/emails", emailRouter);
+  app.use("/senders", senderRouter);
+  app.use("/campaigns", campaignRouter);
+  app.use("/recipients", recipientRouter);
+  app.use("/slack", slackRouter);
+  app.use("/dashboard", dashboardRouter);
+  app.use("/health", healthRouter);
+
   // Root welcome endpoint
   app.get("/", (_req, res) => {
     res.status(200).json({
