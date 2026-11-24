@@ -36,20 +36,36 @@ export class AuthService {
   }> {
     const googleProfile = await googleAuthService.getUserFromCode(code);
 
-    const user = await prisma.user.upsert({
-      where: { googleId: googleProfile.googleId },
-      update: {
-        name: googleProfile.name,
-        email: googleProfile.email,
-        profilePicture: googleProfile.profilePicture
-      },
-      create: {
-        googleId: googleProfile.googleId,
-        email: googleProfile.email,
-        name: googleProfile.name,
-        profilePicture: googleProfile.profilePicture
+    // Find existing user by email or googleId to seamlessly link accounts
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { googleId: googleProfile.googleId },
+          { email: googleProfile.email }
+        ]
       }
     });
+
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          googleId: googleProfile.googleId,
+          name: googleProfile.name || user.name,
+          email: googleProfile.email,
+          profilePicture: googleProfile.profilePicture || user.profilePicture
+        }
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          googleId: googleProfile.googleId,
+          email: googleProfile.email,
+          name: googleProfile.name,
+          profilePicture: googleProfile.profilePicture
+        }
+      });
+    }
 
     logger.info(`User authenticated successfully via Google: ${user.email} (${user.id})`);
     const token = this.generateToken(user);
