@@ -1,0 +1,8 @@
+email,name,company
+alex.turner@example.com,Alex Turner,Apex Labs
+sarah.connor@cyberdyne.org,Sarah Connor,Cyberdyne
+jordan.lee@growthscale.io,Jordan Lee,GrowthScale
+invalid-email-address,Bad Row,SkipMe
+alex.turner@example.com,Alex Duplicate,Apex Labs
+elena.rostova@techfrontier.ai,Elena Rostova,TechFrontier
+marcus.vance@solarsolutions.co,Marcus Vance,SolarSolutions

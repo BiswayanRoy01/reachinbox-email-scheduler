@@ -1,0 +1,136 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reachinbox-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: reachinbox
+      POSTGRES_PASSWORD: reachinbox_secret
+      POSTGRES_DB: reachinbox_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reachinbox -d reachinbox_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: reachinbox-redis
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: reachinbox-elasticsearch
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: reachinbox-kibana
+    restart: always
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reachinbox-api
+    restart: always
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: development
+      ENABLE_DEV_LOGIN: "true"
+      DATABASE_URL: postgresql://reachinbox:reachinbox_secret@postgres:5432/reachinbox_db?schema=public
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      FRONTEND_URL: http://localhost:3000
+      BACKEND_URL: http://localhost:5000
+      JWT_SECRET: production_jwt_secret_reachinbox_at_least_32_characters!
+      TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      EMAIL_WORKER_CONCURRENCY: 5
+      DEFAULT_EMAIL_DELAY_SECONDS: 2
+      MAX_EMAILS_PER_HOUR_PER_SENDER: 100
+      BULL_BOARD_USERNAME: admin
+      BULL_BOARD_PASSWORD: admin_password
+    command: >
+      sh -c "npx prisma migrate deploy && node dist/server.js"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reachinbox-worker
+    restart: always
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://reachinbox:reachinbox_secret@postgres:5432/reachinbox_db?schema=public
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      JWT_SECRET: production_jwt_secret_reachinbox_at_least_32_characters!
+      TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      EMAIL_WORKER_CONCURRENCY: 5
+      DEFAULT_EMAIL_DELAY_SECONDS: 2
+      MAX_EMAILS_PER_HOUR_PER_SENDER: 100
+    command: ["node", "dist/workers/email.worker.js"]
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
