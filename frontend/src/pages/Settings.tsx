@@ -20,6 +20,7 @@ import {
   Bell,
   Check,
   X,
+  Edit2,
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "../utils/cn";
@@ -33,6 +34,8 @@ export const Settings: React.FC = () => {
 
   const [isAddingSender, setIsAddingSender] = useState(false);
   const [isProvisioningEthereal, setIsProvisioningEthereal] = useState(false);
+  const [editingSenderId, setEditingSenderId] = useState<string | null>(null);
+  const [editHourlyLimit, setEditHourlyLimit] = useState<number>(100);
 
   // New sender form state
   const [newSender, setNewSender] = useState<CreateSenderInput>({
@@ -163,17 +166,15 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const handleEditLimit = async (s: any) => {
-    const input = window.prompt(`Set new hourly sending limit for "${s.displayName}":`, String(s.hourlyLimit || 100));
-    if (!input) return;
-    const parsed = parseInt(input, 10);
-    if (isNaN(parsed) || parsed < 1) {
+  const handleSaveEditLimit = async (senderId: string) => {
+    if (isNaN(editHourlyLimit) || editHourlyLimit < 1) {
       toast.error("Please enter a valid positive number");
       return;
     }
     try {
-      await senderApi.updateSender(s.id, { hourlyLimit: parsed });
-      toast.success(`Updated hourly limit for "${s.displayName}" to ${parsed}/hr`);
+      await senderApi.updateSender(senderId, { hourlyLimit: editHourlyLimit });
+      toast.success(`Updated hourly limit to ${editHourlyLimit}/hr`);
+      setEditingSenderId(null);
       refetchSenders();
     } catch (err: any) {
       toast.error(getErrorMessage(err));
@@ -463,26 +464,62 @@ export const Settings: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-900 text-sm">{s.displayName}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleEditLimit(s)}
-                      className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-medium cursor-pointer transition-colors flex items-center gap-1 shadow-2xs"
-                      title="Click to change hourly sending limit"
-                    >
-                      <span>Limit: {s.hourlyLimit}/hr</span>
-                      <span className="text-[10px] text-emerald-600">✏️ edit</span>
-                    </button>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span>{s.emailAddress}</span>
-                    <span>•</span>
-                    <span>
-                      {s.smtpHost}:{s.smtpPort}
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold shadow-2xs">
+                      Limit: {s.hourlyLimit}/hr
                     </span>
                   </div>
+
+                  {editingSenderId === s.id ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-slate-600 font-medium">Set hourly limit:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10000}
+                        value={editHourlyLimit}
+                        onChange={(e) => setEditHourlyLimit(parseInt(e.target.value, 10) || 1)}
+                        className="w-20 px-2 py-1 text-xs font-semibold bg-white border border-emerald-400 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        autoFocus
+                      />
+                      <span className="text-xs text-slate-500">emails/hr</span>
+                      <button
+                        onClick={() => handleSaveEditLimit(s.id)}
+                        className="px-2.5 py-1 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 shadow-xs transition-colors"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Save</span>
+                      </button>
+                      <button
+                        onClick={() => setEditingSenderId(null)}
+                        className="px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg flex items-center gap-1 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span>{s.emailAddress}</span>
+                      <span>•</span>
+                      <span>
+                        {s.smtpHost}:{s.smtpPort}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setEditingSenderId(s.id);
+                      setEditHourlyLimit(s.hourlyLimit || 100);
+                    }}
+                    className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                    title="Change hourly sending limit"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit Limit</span>
+                  </button>
                   <button
                     onClick={() => handleVerifySender(s.id)}
                     className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-slate-50 rounded-lg transition-colors"

@@ -58,6 +58,9 @@ export const ComposeEmail: React.FC = () => {
     if (senders.length > 0 && !senderId) {
       const activeSender = senders.find((s) => s.isActive) || senders[0];
       setSenderId(activeSender.id);
+      if (activeSender.hourlyLimit) {
+        setHourlyLimit(activeSender.hourlyLimit);
+      }
     }
   }, [senders, senderId]);
 
@@ -266,12 +269,19 @@ export const ComposeEmail: React.FC = () => {
           ) : senders.length > 0 ? (
             <select
               value={senderId}
-              onChange={(e) => setSenderId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSenderId(newId);
+                const found = senders.find((s) => s.id === newId);
+                if (found && found.hourlyLimit) {
+                  setHourlyLimit(found.hourlyLimit);
+                }
+              }}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs md:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
             >
               {senders.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.displayName} ({s.emailAddress}) — {s.smtpHost}:{s.smtpPort}
+                  {s.displayName} ({s.emailAddress}) — Limit: {s.hourlyLimit || 100}/hr
                 </option>
               ))}
             </select>
@@ -329,20 +339,25 @@ export const ComposeEmail: React.FC = () => {
             </span>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              Hourly Limit
-            </label>
+          <div className="bg-emerald-50/60 border border-emerald-200/90 p-3.5 rounded-xl">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Hourly Limit (emails/hr)
+              </label>
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                Active Limit: {hourlyLimit}/hr
+              </span>
+            </div>
             <input
               type="number"
               min={1}
               max={10000}
               value={hourlyLimit}
-              onChange={(e) => setHourlyLimit(parseInt(e.target.value, 10) || 100)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs md:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              onChange={(e) => setHourlyLimit(parseInt(e.target.value, 10) || 1)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
             />
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              Maximum emails dispatched per hour per sender account
+            <span className="text-[11px] text-slate-600 mt-1 block">
+              Maximum emails dispatched per hour for this sender. Exceeding jobs are rescheduled by BullMQ and trigger a Slack alert.
             </span>
           </div>
         </div>
