@@ -42,6 +42,19 @@ export class EmailService {
       throw new Error("Invalid or inactive sender specified");
     }
 
+    // If an explicit hourlyLimit is supplied from the compose form, update sender's limit
+    if ((data as any).hourlyLimit && typeof (data as any).hourlyLimit === "number" && (data as any).hourlyLimit > 0) {
+      const newLimit = (data as any).hourlyLimit;
+      if (newLimit !== sender.hourlyLimit) {
+        await prisma.sender.update({
+          where: { id: sender.id },
+          data: { hourlyLimit: newLimit }
+        });
+        sender.hourlyLimit = newLimit;
+        logger.info(`Updated sender ${sender.id} hourly limit to ${newLimit}/hr from email request`);
+      }
+    }
+
     const scheduledDate = data.sendImmediately
       ? new Date()
       : data.scheduledAt

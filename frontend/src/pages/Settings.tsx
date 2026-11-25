@@ -163,6 +163,23 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleEditLimit = async (s: any) => {
+    const input = window.prompt(`Set new hourly sending limit for "${s.displayName}":`, String(s.hourlyLimit || 100));
+    if (!input) return;
+    const parsed = parseInt(input, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      toast.error("Please enter a valid positive number");
+      return;
+    }
+    try {
+      await senderApi.updateSender(s.id, { hourlyLimit: parsed });
+      toast.success(`Updated hourly limit for "${s.displayName}" to ${parsed}/hr`);
+      refetchSenders();
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       {/* Header */}
@@ -446,9 +463,15 @@ export const Settings: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-900 text-sm">{s.displayName}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
-                      Limit: {s.hourlyLimit}/hr
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleEditLimit(s)}
+                      className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-medium cursor-pointer transition-colors flex items-center gap-1 shadow-2xs"
+                      title="Click to change hourly sending limit"
+                    >
+                      <span>Limit: {s.hourlyLimit}/hr</span>
+                      <span className="text-[10px] text-emerald-600">✏️ edit</span>
+                    </button>
                   </div>
                   <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span>{s.emailAddress}</span>
